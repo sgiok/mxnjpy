@@ -5,7 +5,7 @@ import {
 } from "recharts";
 
 const API_KEY      = "N631OGLXXGIATN35";
-const CLAUDE_MODEL = "claude-sonnet-4-20250514";
+const CLAUDE_MODEL = "claude-sonnet-4-5";
 const ALERT_EMAIL  = "seninves@gmail.com";
 
 // EmailJS
@@ -302,7 +302,9 @@ ${btStats?`## バックテスト実績
     body:JSON.stringify({model:CLAUDE_MODEL,max_tokens:1000,messages:[{role:"user",content:prompt}]}),
   });
   const data=await res.json();
-  return data.content?.[0]?.text||"コメントを取得できませんでした。";
+  if (data.error) throw new Error(data.error);
+  if (!data.content?.[0]?.text) throw new Error("レスポンス異常: " + JSON.stringify(data).slice(0,100));
+  return data.content[0].text;
 }
 
 // ─────────────────────────────────────────────────────────────
