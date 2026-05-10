@@ -16,8 +16,17 @@ const EJS_PUBLIC   = "796hMIPW1nD9lUgVy";
 // ─────────────────────────────────────────────────────────────
 // DATA
 // ─────────────────────────────────────────────────────────────
-async function fetchRealData() {
-  const res  = await fetch(`/api/fx?interval=15m&range=5d`);
+const TF_CONFIG = {
+  "1m":  { interval:"1m",  range:"1d",  label:"1分足",  liveMs:60*1000 },
+  "5m":  { interval:"5m",  range:"5d",  label:"5分足",  liveMs:5*60*1000 },
+  "15m": { interval:"15m", range:"5d",  label:"15分足", liveMs:15*60*1000 },
+  "30m": { interval:"30m", range:"1mo", label:"30分足", liveMs:30*60*1000 },
+  "1h":  { interval:"60m", range:"1mo", label:"1時間足", liveMs:60*60*1000 },
+};
+
+async function fetchRealData(tf="15m") {
+  const {interval,range} = TF_CONFIG[tf];
+  const res  = await fetch(`/api/fx?interval=${interval}&range=${range}`);
   const json = await res.json();
   if (json.error) throw new Error(json.error);
   if (!json.candles || json.candles.length === 0) throw new Error("データなし");
@@ -339,14 +348,15 @@ export default function App() {
   const [btParams,    setBtParams]    = useState({tp:1.5,sl:1.0});
   const [alertStatus, setAlertStatus] = useState("");
   const [alertEnabled,setAlertEnabled]= useState(true);
+  const [timeframe, setTimeframe] = useState("15m");
   const prevSignal = useRef(null);
 
   const refresh = useCallback(async()=>{
     setStatusMsg("データ取得中...");
     let candles, real=false;
     try{
-      candles=await fetchRealData(); real=true;
-      setStatusMsg("Alpha Vantage リアルデータ");
+      candles=await fetchRealData(timeframe); real=true;
+      setStatusMsg("Yahoo Finance リアルデータ");
     }catch(e){
       candles=generateMockCandles(300);
       setStatusMsg("モックデータ（"+e.message+"）");
@@ -379,7 +389,7 @@ export default function App() {
         setTimeout(()=>setAlertStatus(""),6000);
       }
     }
-  },[alertEnabled]);
+  },[alertEnabled, timeframe]);
 
   const runBT = useCallback(async()=>{
     if(allCandles.length<50) return;
@@ -404,9 +414,10 @@ export default function App() {
   useEffect(()=>{ refresh(); },[refresh]);
   useEffect(()=>{
     if(!isLive) return;
-    const id=setInterval(refresh,15*60*1000);
+    const ms = TF_CONFIG[timeframe]?.liveMs ?? 15*60*1000;
+    const id=setInterval(refresh, ms);
     return()=>clearInterval(id);
-  },[isLive,refresh]);
+  },[isLive,refresh,timeframe]);
 
   if(!enriched) return(
     <div style={{background:"#0a0e1a",minHeight:"100vh",color:"#94a3b8",
@@ -452,7 +463,7 @@ export default function App() {
               </span>
             </div>
             <div style={{fontSize:11,color:"#64748b"}}>
-              15分足 • {allCandles.length}本
+              {TF_CONFIG[timeframe]?.label} • {allCandles.length}本
               {isReal?<span style={{color:"#10b981",marginLeft:8}}>● REAL</span>
                 :<span style={{color:"#f59e0b",marginLeft:8}}>⚠ MOCK</span>}
               {alertEnabled&&<span style={{color:"#6366f1",marginLeft:8}}>🔔 アラートON</span>}
@@ -464,6 +475,18 @@ export default function App() {
           borderRadius:10,padding:"8px 24px",textAlign:"center",minWidth:120}}>
           <div style={{fontSize:24,fontWeight:900,color:signal.color,letterSpacing:3}}>{signal.signal}</div>
           <div style={{fontSize:10,color:"#64748b"}}>スコア {signal.score>0?"+":""}{signal.score}/6</div>
+        </div>
+
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"center"}}>
+          {Object.entries(TF_CONFIG).map(([key,cfg])=>(
+            <button key={key} onClick={()=>{ setTimeframe(key); setBtResult(null); }} style={{
+              background:timeframe===key?"#1e3a5f":"#0f172a",
+              border:`1px solid ${timeframe===key?"#0ea5e9":"#334155"}`,
+              color:timeframe===key?"#0ea5e9":"#64748b",
+              borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",
+              fontWeight:timeframe===key?700:400,
+            }}>{cfg.label}</button>
+          ))}
         </div>
 
         <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
