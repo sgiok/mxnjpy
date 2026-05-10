@@ -17,7 +17,7 @@ const EJS_PUBLIC   = "796hMIPW1nD9lUgVy";
 // DATA
 // ─────────────────────────────────────────────────────────────
 async function fetchRealData() {
-  const url = `https://www.alphavantage.co/query?function=FX_INTRADAY&from_symbol=MXN&to_symbol=JPY&interval=15min&outputsize=full&apikey=${API_KEY}`;
+  const url = `/api/fx?interval=15min&outputsize=full`;
   const res  = await fetch(url);
   const json = await res.json();
   if (json["Note"])        throw new Error("APIレート制限中");
