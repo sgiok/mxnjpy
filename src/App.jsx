@@ -17,24 +17,11 @@ const EJS_PUBLIC   = "796hMIPW1nD9lUgVy";
 // DATA
 // ─────────────────────────────────────────────────────────────
 async function fetchRealData() {
-  const url = `/api/fx?interval=15min&outputsize=full`;
-  const res  = await fetch(url);
+  const res  = await fetch(`/api/fx?interval=15m&range=5d`);
   const json = await res.json();
-  if (json["Note"])        throw new Error("APIレート制限中");
-  if (json["Information"]) throw new Error("API上限超過");
-  const series = json["Time Series FX (15min)"];
-  if (!series) throw new Error("データなし");
-  return Object.entries(series)
-    .sort(([a],[b]) => a.localeCompare(b))
-    .map(([time, v]) => ({
-      time:  time.slice(11,16),
-      date:  time.slice(0,10),
-      open:  +parseFloat(v["1. open"]).toFixed(5),
-      high:  +parseFloat(v["2. high"]).toFixed(5),
-      low:   +parseFloat(v["3. low"]).toFixed(5),
-      close: +parseFloat(v["4. close"]).toFixed(5),
-      volume:Math.floor(Math.random()*600+100),
-    }));
+  if (json.error) throw new Error(json.error);
+  if (!json.candles || json.candles.length === 0) throw new Error("データなし");
+  return json.candles;
 }
 
 function generateMockCandles(count=300) {
